@@ -1,5 +1,6 @@
 #include "defs.h"
 #include "common.h"
+#include "emulator.h"
 #include "debug.h"
 #include "island.h"
 
@@ -13,6 +14,13 @@ PDEBUG_SYSTEM_OBJECTS DebugSystemObjects = NULL;
 PDEBUG_DATA_SPACES DebugDataSpaces = NULL;
 ULONG64 MmLoadSystemImage = 0;
 ULONG64 MmLoadSystemImageEx = 0;
+
+HRESULT
+CALLBACK
+Trace(
+    __in PDEBUG_CLIENT Client,
+    __in PCSTR Args
+);
 
 VOID
 CALLBACK
@@ -137,6 +145,8 @@ DebugExtensionInitialize(
     return Result;
 }
 
+BOOL ETrace = FALSE;
+
 VOID
 CALLBACK
 DebugExtensionNotify(
@@ -147,12 +157,20 @@ DebugExtensionNotify(
     switch (Notify)
     {
     case DEBUG_NOTIFY_SESSION_ACTIVE:
+        dprintf("[Island] Initialize 1.\n");
         break;
     case DEBUG_NOTIFY_SESSION_INACTIVE:
+        dprintf("[Island] Initialize 2.\n");
         break;
     case DEBUG_NOTIFY_SESSION_ACCESSIBLE:
+        if (ETrace) {
+            ETrace = FALSE;
+            Trace(NULL, NULL);
+        }
+        dprintf("[Island] Initialize 3.\n");
         break;
     case DEBUG_NOTIFY_SESSION_INACCESSIBLE:
+        dprintf("[Island] Initialize 4.\n");
         break;
     default:
         break;
@@ -161,7 +179,7 @@ DebugExtensionNotify(
 
 HRESULT
 CALLBACK
-BreakEntry(
+Entry(
     __in PDEBUG_CLIENT Client,
     __in PCSTR Args
 )
@@ -190,5 +208,120 @@ BreakEntry(
         CommandExecute("g");
     }
 
+    return S_OK;
+}
+
+VOID
+WINAPI
+CodeCallback(
+    ULONG64 Address,
+    ULONG Size
+)
+{
+
+}
+
+BOOLEAN
+WINAPI
+MemCallback(
+    ULONG Type,
+    ULONG64 Address,
+    ULONG Size,
+    ULONG64 Value
+)
+{
+    HRESULT Result = S_OK;
+    PVOID UnknownPage = NULL;
+    CHAR SymbolsName[MAX_PATH] = { 0 };
+    ULONG64 RspValue = 0;
+    ULONG64 RetAddress = 0;
+
+    Result = DebugSymbols->lpVtbl->GetNameByOffset(
+        DebugSymbols,
+        Address,
+        SymbolsName,
+        sizeof(SymbolsName),
+        NULL,
+        NULL);
+
+    if (S_OK == Result) {
+        dprintf("[Island] Type:%d Address:%I64X %s\n", Type, Address, SymbolsName);
+    }
+    else {
+        dprintf("[Island] Type:%d Address:%I64X\n", Type, Address);
+    }
+
+    if (UC_MEM_READ_UNMAPPED == Type) {
+        UnknownPage = RinHeapAlloc(USN_PAGE_SIZE);
+        ReadMemory(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, NULL);
+        UcMapMemoryFromPtr(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, UC_PROT_ALL);
+    }
+
+    if (UC_MEM_WRITE_UNMAPPED == Type) {
+        UnknownPage = RinHeapAlloc(USN_PAGE_SIZE);
+        ReadMemory(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, NULL);
+        UcMapMemoryFromPtr(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, UC_PROT_ALL);
+    }
+
+    if (UC_MEM_FETCH_UNMAPPED == Type) {
+        UcReadRegister(UC_X86_REG_RSP, &RspValue);
+        UcReadMemory(RspValue, &RetAddress, sizeof(RetAddress));
+        UcWriteRegister(UC_X86_REG_RIP, &RetAddress);
+        AddDebugBreakPoint(RetAddress, DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT);
+        ETrace = TRUE;
+        CommandExecute("g");
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+HRESULT
+CALLBACK
+Trace(
+    __in PDEBUG_CLIENT Client,
+    __in PCSTR Args
+)
+{
+    CONTEXT DebugContext = { 0 };
+    ULONG64 GsBase = 0;
+    ULONG64 ImageBase = 0;
+    ULONG SizeOfImage = 0;
+    PVOID ImageDumpBase = 0;
+
+    InitializeEmulator();
+
+    if (UC_ERR_OK == UcReadyEmulatorGdtr()) {
+        GetDebugContext(&DebugContext);
+        UcLoadContext(&DebugContext);
+
+        ReadMsr(IA32_GS_BASE, &GsBase);
+        UcWriteMsr(IA32_GS_BASE, GsBase);
+
+        ImageBase = GetImageFromContext(&DebugContext, &SizeOfImage);
+
+        if (0 != ImageBase) {
+            ImageDumpBase = RinHeapAlloc(SizeOfImage);
+            ReadMemory(ImageBase, ImageDumpBase, SizeOfImage, NULL);
+
+            UcMapMemoryFromPtr(
+                ImageBase,
+                ImageDumpBase,
+                SizeOfImage,
+                UC_PROT_ALL);
+
+            UcSetCallback(
+                CodeCallback,
+                NULL, NULL, NULL, NULL, NULL,
+                MemCallback);
+
+            UcEmulatorStart(DebugContext.Rip, 0);
+        }
+        else {
+            dprintf("[Island] Please reload symbols\n");
+        }
+    }
+
+    UninitializeEmulator();
     return S_OK;
 }

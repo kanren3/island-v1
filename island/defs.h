@@ -9,6 +9,10 @@
 #include <capstone/capstone.h>
 #include <unicorn/unicorn.h>
 
+#ifndef NOTHING
+#define NOTHING
+#endif
+
 #ifndef _WIN64
 #define KDEXT_32BIT
 #else
