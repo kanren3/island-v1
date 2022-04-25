@@ -72,23 +72,23 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\Driver\capstone\include;D:\Driver\unicorn\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\Driver\capstone\msvc\Debug;D:\Driver\unicorn\build_x86\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\Repos\capstone\include;D:\Repos\unicorn-1.0.3\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Repos\capstone\msvc\Debug;D:\Repos\unicorn-1.0.3\msvc\Win32\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\Driver\capstone\include;D:\Driver\unicorn\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\Driver\capstone\msvc\Release;D:\Driver\unicorn\build_x86\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\Repos\capstone\include;D:\Repos\unicorn-1.0.3\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Repos\capstone\msvc\Release;D:\Repos\unicorn-1.0.3\msvc\Win32\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\Driver\capstone\include;D:\Driver\unicorn\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\Driver\capstone\msvc\x64\Debug;D:\Driver\unicorn\build_x64\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\Repos\capstone\include;D:\Repos\unicorn-1.0.3\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Repos\capstone\msvc\x64\Debug;D:\Repos\unicorn-1.0.3\msvc\x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\Driver\capstone\include;D:\Driver\unicorn\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\Driver\capstone\msvc\x64\Release;D:\Driver\unicorn\build_x64\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\Repos\capstone\include;D:\Repos\unicorn-1.0.3\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Repos\capstone\msvc\x64\Release;D:\Repos\unicorn-1.0.3\msvc\x64\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -101,7 +101,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn.lib;unicorn-common.lib;x86_64-softmmu.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>island.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -120,7 +120,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn.lib;unicorn-common.lib;x86_64-softmmu.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>island.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -135,7 +135,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn.lib;unicorn-common.lib;x86_64-softmmu.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>island.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -154,7 +154,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn.lib;unicorn-common.lib;x86_64-softmmu.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ntdll.lib;dbgeng.lib;capstone.lib;unicorn_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>island.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>

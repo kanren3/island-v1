@@ -15,13 +15,6 @@ PDEBUG_DATA_SPACES DebugDataSpaces = NULL;
 ULONG64 MmLoadSystemImage = 0;
 ULONG64 MmLoadSystemImageEx = 0;
 
-HRESULT
-CALLBACK
-Trace(
-    __in PDEBUG_CLIENT Client,
-    __in PCSTR Args
-);
-
 VOID
 CALLBACK
 DebugExtensionUninitialize(
@@ -145,8 +138,6 @@ DebugExtensionInitialize(
     return Result;
 }
 
-BOOL ETrace = FALSE;
-
 VOID
 CALLBACK
 DebugExtensionNotify(
@@ -157,20 +148,12 @@ DebugExtensionNotify(
     switch (Notify)
     {
     case DEBUG_NOTIFY_SESSION_ACTIVE:
-        dprintf("[Island] Initialize 1.\n");
         break;
     case DEBUG_NOTIFY_SESSION_INACTIVE:
-        dprintf("[Island] Initialize 2.\n");
         break;
     case DEBUG_NOTIFY_SESSION_ACCESSIBLE:
-        if (ETrace) {
-            ETrace = FALSE;
-            Trace(NULL, NULL);
-        }
-        dprintf("[Island] Initialize 3.\n");
         break;
     case DEBUG_NOTIFY_SESSION_INACCESSIBLE:
-        dprintf("[Island] Initialize 4.\n");
         break;
     default:
         break;
@@ -268,7 +251,6 @@ MemCallback(
         UcReadMemory(RspValue, &RetAddress, sizeof(RetAddress));
         UcWriteRegister(UC_X86_REG_RIP, &RetAddress);
         AddDebugBreakPoint(RetAddress, DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT);
-        ETrace = TRUE;
         CommandExecute("g");
         return FALSE;
     }
@@ -288,10 +270,12 @@ Trace(
     ULONG64 ImageBase = 0;
     ULONG SizeOfImage = 0;
     PVOID ImageDumpBase = 0;
+    SHORT TaskRegister = 0x40;
 
     InitializeEmulator();
 
     if (UC_ERR_OK == UcReadyEmulatorGdtr()) {
+        UcWriteRegister(UC_X86_REG_TR, &TaskRegister);
         GetDebugContext(&DebugContext);
         UcLoadContext(&DebugContext);
 
@@ -311,7 +295,7 @@ Trace(
                 UC_PROT_ALL);
 
             UcSetCallback(
-                CodeCallback,
+                NULL,
                 NULL, NULL, NULL, NULL, NULL,
                 MemCallback);
 

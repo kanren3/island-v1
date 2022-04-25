@@ -231,7 +231,6 @@ UcReadyEmulatorGdtr(
     BuildGdtEntry(EmulatorGdt, KGDT64_R3_DATA, 0, 0xFFFFFFFF, TYPE_DATA, DPL_USER, FALSE, TRUE);
     BuildGdtEntry(EmulatorGdt, KGDT64_R3_CMTEB, 0, 0xFFF, TYPE_DATA, DPL_USER, FALSE, TRUE);
 
-
     if (UC_ERR_OK == UcLoadGdtr(EmulatorGdt)) {
 #ifndef _WIN64
         EmulatorSelector = KGDT64_R3_CMCODE | DPL_USER;
@@ -540,5 +539,11 @@ DisasmPrint(
 
     cs_disasm_iter(EmulatorRegion.cs_handle, &code, &size, &address, &insn);
 
-    dprintf("address:%I64X\t\t\t%s\t\t%s\n", insn.address, insn.mnemonic, insn.op_str);
+    if (strstr(insn.mnemonic, "cpuid") ||
+        strstr(insn.mnemonic, "str") ||
+        strstr(insn.mnemonic, "idt") ||
+        strstr(insn.mnemonic, "gdt") ||
+        strstr(insn.mnemonic, "msr")) {
+        dprintf("address:%I64X\t\t\t%s\t\t%s\n", insn.address, insn.mnemonic, insn.op_str);
+    }
 }

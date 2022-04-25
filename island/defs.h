@@ -4,10 +4,9 @@
 #include <stdio.h>
 #include <ntstatus.h>
 #define WIN32_NO_STATUS
-#include <windows.h>
-#include <winternl.h>
 #include <capstone/capstone.h>
 #include <unicorn/unicorn.h>
+#include <winternl.h>
 
 #ifndef NOTHING
 #define NOTHING
