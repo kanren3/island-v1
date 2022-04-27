@@ -15,7 +15,8 @@ extern "C" {
 		WINAPI
 		AddDebugBreakPoint(
 			__in ULONG64 Address,
-			__in ULONG Flags
+			__in ULONG Flags,
+			__in_opt ULONG ThreadId
 		);
 
 	HRESULT

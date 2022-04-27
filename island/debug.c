@@ -1,11 +1,12 @@
 #include "defs.h"
-#include "common.h"
+#include "helper.h"
+#include "emulator.h"
 #include "debug.h"
+
+DEBUG_BLOCK DebugBlock = { 0 };
 
 IDebugEventCallbacks DebugEventCallbacks = { 0 };
 IDebugEventCallbacksVtbl DebugEventCallbacksVtbl = { 0 };
-ULONG64 MmLoadSystemImageRet = 0;
-ULONG64 SystemImageBaseStack = 0;
 
 ULONG
 CALLBACK
@@ -50,30 +51,38 @@ DebugBreakpoint(
     IMAGE_DOS_HEADER DosHeader = { 0 };
     IMAGE_NT_HEADERS NtHeaders = { 0 };
 
+    ULONG DebugState = DEBUG_STATUS_GO;
+    ULONG UcState = UC_ERR_OK;
+    HRESULT Result = S_OK;
+    CONTEXT Context = { 0 };
+    USHORT TaskRegister = 0x40;
+    ULONG64 GsBase = 0;
+    PVOID ImageSnapshoot = NULL;
+
     Breakpoint->lpVtbl->GetOffset(Breakpoint, &BreakpointOffset);
 
-    if (BreakpointOffset == MmLoadSystemImage ||
-        BreakpointOffset == MmLoadSystemImageEx) {
+    if (BreakpointOffset == DebugBlock.MmLoadSystemImage ||
+        BreakpointOffset == DebugBlock.MmLoadSystemImageEx) {
         GetRegisterValue(DEBUG_REG_RSP, &RspValue);
 
         ReadMemory(
             RspValue.I64,
-            &MmLoadSystemImageRet,
-            sizeof(MmLoadSystemImageRet),
+            &DebugBlock.LoadImageRetAddress,
+            sizeof(DebugBlock.LoadImageRetAddress),
             NULL);
 
         AddDebugBreakPoint(
-            MmLoadSystemImageRet,
-            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT);
+            DebugBlock.LoadImageRetAddress,
+            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT, 0);
 
-        SystemImageBaseStack = RspValue.I64 + 0x30;
+        DebugBlock.LoadImageStack = RspValue.I64 + 0x30;
 
         return DEBUG_STATUS_GO;
     }
 
-    if (BreakpointOffset == MmLoadSystemImageRet) {
+    if (BreakpointOffset == DebugBlock.LoadImageRetAddress) {
         ReadMemory(
-            SystemImageBaseStack,
+            DebugBlock.LoadImageStack,
             &SystemImageBasePtr,
             sizeof(SystemImageBasePtr),
             NULL);
@@ -99,13 +108,76 @@ DebugBreakpoint(
 
             AddDebugBreakPoint(
                 SystemImageBase + NtHeaders.OptionalHeader.AddressOfEntryPoint,
-                DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT);
+                DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT, 0);
 
             return DEBUG_STATUS_GO;
         }
     }
 
+    if (BreakpointOffset == DebugBlock.TraceAddress) {
+        InitializeEmulator();
 
+        if (UC_ERR_OK == UcReadyEmulatorGdtr()) {
+            GetDebugContext(&Context);
+            UcLoadContext(&Context);
+
+            UcWriteRegister(UC_X86_REG_TR, &TaskRegister);
+
+            ReadMsr(IA32_GS_BASE, &GsBase);
+            UcWriteMsr(IA32_GS_BASE, GsBase);
+
+            DebugBlock.TraceImageBase = GetFunctionImageBase(
+                Context.Rip, &DebugBlock.TraceSizeOfImage);
+
+            if (0 != DebugBlock.TraceImageBase) {
+                ImageSnapshoot = RinHeapAlloc(DebugBlock.TraceSizeOfImage);
+
+                ReadMemory(
+                    DebugBlock.TraceImageBase,
+                    ImageSnapshoot,
+                    DebugBlock.TraceSizeOfImage,
+                    NULL);
+
+                UcMapMemoryFromPtr(
+                    DebugBlock.TraceImageBase,
+                    ImageSnapshoot,
+                    DebugBlock.TraceSizeOfImage,
+                    UC_PROT_ALL);
+
+                UcSetCallback(
+                    NULL, NULL, NULL, NULL, NULL, NULL,
+                    EmulatorMemoryNotify);
+
+                UcState = UcEmulatorStart(Context.Rip, 0);
+
+                if (UC_ERR_FETCH_UNMAPPED == UcState) {
+                    UcSaveContext(&Context);
+
+                    TraceNotify(Context.Rip);
+
+                    UcReadMemory(
+                        Context.Rsp,
+                        &DebugBlock.TraceAddress,
+                        sizeof(DebugBlock.TraceAddress));
+
+                    AddDebugBreakPoint(
+                        DebugBlock.TraceAddress,
+                        DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT,
+                        DebugBlock.TraceThreadId);
+                }
+                else {
+                    DebugState = DEBUG_STATUS_NO_CHANGE;
+                }
+            }
+            else {
+                dprintf("[Island] Please reload symbols\n");
+            }
+        }
+
+        UninitializeEmulator();
+
+        return DebugState;
+    }
 
     return DEBUG_STATUS_NO_CHANGE;
 }
@@ -135,7 +207,8 @@ PDEBUG_BREAKPOINT
 WINAPI
 AddDebugBreakPoint(
     __in ULONG64 Address,
-    __in ULONG Flags
+    __in ULONG Flags,
+    __in_opt ULONG ThreadId
 )
 {
     HRESULT Result = S_OK;
@@ -150,6 +223,10 @@ AddDebugBreakPoint(
     if (FALSE != SUCCEEDED(Result)) {
         Breakpoint->lpVtbl->SetOffset(Breakpoint, Address);
         Breakpoint->lpVtbl->SetFlags(Breakpoint, Flags);
+
+        if (0 != ThreadId) {
+            Breakpoint->lpVtbl->SetMatchThreadId(Breakpoint, ThreadId);
+        }
     }
 
     return Breakpoint;

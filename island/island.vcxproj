@@ -163,7 +163,9 @@
     <ClCompile Include="debug.c" />
     <ClCompile Include="emulator.c" />
     <ClCompile Include="handler.c" />
+    <ClCompile Include="helper.c" />
     <ClCompile Include="island.c" />
+    <ClCompile Include="trace.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
@@ -171,8 +173,10 @@
     <ClInclude Include="defs.h" />
     <ClInclude Include="emulator.h" />
     <ClInclude Include="handler.h" />
+    <ClInclude Include="helper.h" />
     <ClInclude Include="island.h" />
     <ClInclude Include="private.h" />
+    <ClInclude Include="trace.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="island.def" />

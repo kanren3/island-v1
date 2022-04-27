@@ -1,5 +1,6 @@
 #include "defs.h"
 #include "common.h"
+#include "helper.h"
 #include "handler.h"
 #include "emulator.h"
 
@@ -110,7 +111,7 @@ UcWriteRegister(
 ULONG
 WINAPI
 UcMapMemory(
-    __in ULONG_PTR Address,
+    __in ULONG64 Address,
     __in SIZE_T Size,
     __in ULONG Protect
 )
@@ -129,7 +130,7 @@ UcMapMemory(
 ULONG
 WINAPI
 UcMapMemoryFromPtr(
-    __in ULONG_PTR Address,
+    __in ULONG64 Address,
     __in PVOID Buffer,
     __in SIZE_T Size,
     __in ULONG Protect
@@ -159,7 +160,7 @@ UcMapMemoryFromPtr(
 ULONG
 WINAPI
 UcUnmapMemory(
-    __in ULONG_PTR Address,
+    __in ULONG64 Address,
     __in SIZE_T Size
 )
 {
@@ -176,7 +177,7 @@ UcUnmapMemory(
 ULONG
 WINAPI
 UcReadMemory(
-    __in ULONG_PTR Address,
+    __in ULONG64 Address,
     __out PVOID Buffer,
     __in SIZE_T Size
 )
@@ -195,7 +196,7 @@ UcReadMemory(
 ULONG
 WINAPI
 UcWriteMemory(
-    __in ULONG_PTR Address,
+    __in ULONG64 Address,
     __in PVOID Buffer,
     __in SIZE_T Size
 )
@@ -287,6 +288,7 @@ UcSaveContext(
     uc_reg_read(EmulatorRegion.uc_handle, UC_X86_REG_RDI, &Context->Rdi);
     uc_reg_read(EmulatorRegion.uc_handle, UC_X86_REG_RSP, &Context->Rsp);
     uc_reg_read(EmulatorRegion.uc_handle, UC_X86_REG_RBP, &Context->Rbp);
+    uc_reg_read(EmulatorRegion.uc_handle, UC_X86_REG_RIP, &Context->Rip);
     uc_reg_read(EmulatorRegion.uc_handle, UC_X86_REG_EFLAGS, &Context->EFlags);
 
     uc_reg_read(EmulatorRegion.uc_handle, UC_X86_REG_XMM0, &Context->Xmm0);
@@ -343,6 +345,7 @@ UcLoadContext(
     uc_reg_write(EmulatorRegion.uc_handle, UC_X86_REG_RDI, &Context->Rdi);
     uc_reg_write(EmulatorRegion.uc_handle, UC_X86_REG_RSP, &Context->Rsp);
     uc_reg_write(EmulatorRegion.uc_handle, UC_X86_REG_RBP, &Context->Rbp);
+    uc_reg_write(EmulatorRegion.uc_handle, UC_X86_REG_RIP, &Context->Rip);
     uc_reg_write(EmulatorRegion.uc_handle, UC_X86_REG_EFLAGS, &Context->EFlags);
 
     uc_reg_write(EmulatorRegion.uc_handle, UC_X86_REG_XMM0, &Context->Xmm0);
@@ -539,11 +542,104 @@ DisasmPrint(
 
     cs_disasm_iter(EmulatorRegion.cs_handle, &code, &size, &address, &insn);
 
-    if (strstr(insn.mnemonic, "cpuid") ||
-        strstr(insn.mnemonic, "str") ||
-        strstr(insn.mnemonic, "idt") ||
-        strstr(insn.mnemonic, "gdt") ||
-        strstr(insn.mnemonic, "msr")) {
-        dprintf("address:%I64X\t\t\t%s\t\t%s\n", insn.address, insn.mnemonic, insn.op_str);
+//    if (strstr(insn.mnemonic, "cpuid") ||
+//        strstr(insn.mnemonic, "str") ||
+//        strstr(insn.mnemonic, "idt") ||
+//        strstr(insn.mnemonic, "gdt") ||
+//        strstr(insn.mnemonic, "msr")) {
+//        dprintf("address:%I64X\t\t\t%s\t\t%s\n", insn.address, insn.mnemonic, insn.op_str);
+//    }
+
+    dprintf("address:%I64X\t\t\t%s\t\t%s\n", insn.address, insn.mnemonic, insn.op_str);
+}
+
+BOOLEAN
+WINAPI
+EmulatorMemoryNotify(
+    ULONG Type,
+    ULONG64 Address,
+    ULONG Size,
+    ULONG64 Value
+)
+{
+    PVOID UnknownPage = NULL;
+
+    switch (Type) {
+    case UC_MEM_READ_UNMAPPED:
+    case UC_MEM_WRITE_UNMAPPED:
+        UnknownPage = RinHeapAlloc(USN_PAGE_SIZE);
+        ReadMemory(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, NULL);
+        UcMapMemoryFromPtr(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, UC_PROT_ALL);
+        return TRUE;
+    case UC_MEM_FETCH_UNMAPPED:
+        UcWriteRegister(UC_X86_REG_RIP, &Address);
+        return FALSE;
     }
+
+    return TRUE;
+}
+
+VOID
+WINAPI
+EmulatorCodeNotify(
+    ULONG64 Address,
+    ULONG Size
+)
+{
+    DisasmPrint(Address);
+}
+
+ULONG
+WINAPI
+Emulate(
+    __out PCONTEXT Context
+)
+{
+    ULONG UcState = UC_ERR_OK;
+    ULONG64 GsBase = 0;
+    ULONG64 ImageBase = 0;
+    ULONG SizeOfImage = 0;
+    SHORT TaskRegister = 0x40;
+    PVOID ImageSnapshoot = NULL;
+
+    InitializeEmulator();
+
+    if (UC_ERR_OK == UcReadyEmulatorGdtr()) {
+        GetDebugContext(Context);
+        UcLoadContext(Context);
+
+        UcWriteRegister(UC_X86_REG_TR, &TaskRegister);
+
+        ReadMsr(IA32_GS_BASE, &GsBase);
+        UcWriteMsr(IA32_GS_BASE, GsBase);
+
+        ImageBase = GetFunctionImageBase(
+            Context->Rip, &SizeOfImage);
+
+        if (0 != ImageBase) {
+            ImageSnapshoot = RinHeapAlloc(SizeOfImage);
+            ReadMemory(ImageBase, ImageSnapshoot, SizeOfImage, NULL);
+            UcMapMemoryFromPtr(ImageBase, ImageSnapshoot, SizeOfImage, UC_PROT_ALL);
+
+            UcSetCallback(
+                NULL, NULL, NULL, NULL, NULL, NULL,
+                EmulatorMemoryNotify);
+
+            UcState = UcEmulatorStart(Context->Rip, 0);
+            UcSaveContext(Context);
+
+            if (UC_ERR_FETCH_UNMAPPED == UcState) {
+                UcReadMemory(
+                    Context->Rsp,
+                    &Context->P1Home,
+                    sizeof(Context->P1Home));
+            }
+        }
+        else {
+            dprintf("[Island] Please reload symbols\n");
+        }
+    }
+
+    UninitializeEmulator();
+    return UcState;
 }

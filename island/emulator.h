@@ -48,7 +48,7 @@ extern "C" {
     ULONG
         WINAPI
         UcMapMemory(
-            __in ULONG_PTR Address,
+            __in ULONG64 Address,
             __in SIZE_T Size,
             __in ULONG Protect
         );
@@ -56,7 +56,7 @@ extern "C" {
     ULONG
         WINAPI
         UcMapMemoryFromPtr(
-            __in ULONG_PTR Address,
+            __in ULONG64 Address,
             __in PVOID Buffer,
             __in SIZE_T Size,
             __in ULONG Protect
@@ -65,14 +65,14 @@ extern "C" {
     ULONG
         WINAPI
         UcUnmapMemory(
-            __in ULONG_PTR Address,
+            __in ULONG64 Address,
             __in SIZE_T Size
         );
 
     ULONG
         WINAPI
         UcReadMemory(
-            __in ULONG_PTR Address,
+            __in ULONG64 Address,
             __out PVOID Buffer,
             __in SIZE_T Size
         );
@@ -80,7 +80,7 @@ extern "C" {
     ULONG
         WINAPI
         UcWriteMemory(
-            __in ULONG_PTR Address,
+            __in ULONG64 Address,
             __in PVOID Buffer,
             __in SIZE_T Size
         );
@@ -152,6 +152,21 @@ extern "C" {
         WINAPI
         DisasmPrint(
             IN ULONG64 Address
+        );
+
+    ULONG
+        WINAPI
+        Emulate(
+            __out PCONTEXT Context
+        );
+
+    BOOLEAN
+        WINAPI
+        EmulatorMemoryNotify(
+            ULONG Type,
+            ULONG64 Address,
+            ULONG Size,
+            ULONG64 Value
         );
 
 #ifdef __cplusplus

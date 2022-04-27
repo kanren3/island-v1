@@ -1,5 +1,5 @@
 #include "defs.h"
-#include "common.h"
+#include "helper.h"
 #include "emulator.h"
 #include "debug.h"
 #include "island.h"
@@ -12,8 +12,6 @@ PDEBUG_REGISTERS DebugRegisters = NULL;
 PDEBUG_SYMBOLS DebugSymbols = NULL;
 PDEBUG_SYSTEM_OBJECTS DebugSystemObjects = NULL;
 PDEBUG_DATA_SPACES DebugDataSpaces = NULL;
-ULONG64 MmLoadSystemImage = 0;
-ULONG64 MmLoadSystemImageEx = 0;
 
 VOID
 CALLBACK
@@ -169,143 +167,30 @@ Entry(
 {
     CommandExecute(".reload");
 
-    MmLoadSystemImage = GetOffsetByName("MmLoadSystemImage");
-    MmLoadSystemImageEx = GetOffsetByName("MmLoadSystemImageEx");
+    DebugBlock.MmLoadSystemImage = GetOffsetByName("MmLoadSystemImage");
+    DebugBlock.MmLoadSystemImageEx = GetOffsetByName("MmLoadSystemImageEx");
 
-    if (MmLoadSystemImageEx) {
+    if (DebugBlock.MmLoadSystemImageEx) {
         CommandExecute("bc *");
 
         AddDebugBreakPoint(
-            MmLoadSystemImageEx,
-            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT);
+            DebugBlock.MmLoadSystemImageEx,
+            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT, 0);
 
         CommandExecute("g");
     }
-    else if (MmLoadSystemImage) {
+    else if (DebugBlock.MmLoadSystemImage) {
         CommandExecute("bc *");
 
         AddDebugBreakPoint(
-            MmLoadSystemImage,
-            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT);
+            DebugBlock.MmLoadSystemImage,
+            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT, 0);
 
         CommandExecute("g");
-    }
-
-    return S_OK;
-}
-
-VOID
-WINAPI
-CodeCallback(
-    ULONG64 Address,
-    ULONG Size
-)
-{
-
-}
-
-BOOLEAN
-WINAPI
-MemCallback(
-    ULONG Type,
-    ULONG64 Address,
-    ULONG Size,
-    ULONG64 Value
-)
-{
-    HRESULT Result = S_OK;
-    PVOID UnknownPage = NULL;
-    CHAR SymbolsName[MAX_PATH] = { 0 };
-    ULONG64 RspValue = 0;
-    ULONG64 RetAddress = 0;
-
-    Result = DebugSymbols->lpVtbl->GetNameByOffset(
-        DebugSymbols,
-        Address,
-        SymbolsName,
-        sizeof(SymbolsName),
-        NULL,
-        NULL);
-
-    if (S_OK == Result) {
-        dprintf("[Island] Type:%d Address:%I64X %s\n", Type, Address, SymbolsName);
     }
     else {
-        dprintf("[Island] Type:%d Address:%I64X\n", Type, Address);
+        dprintf("[Island] Please reload symbols\n");
     }
 
-    if (UC_MEM_READ_UNMAPPED == Type) {
-        UnknownPage = RinHeapAlloc(USN_PAGE_SIZE);
-        ReadMemory(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, NULL);
-        UcMapMemoryFromPtr(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, UC_PROT_ALL);
-    }
-
-    if (UC_MEM_WRITE_UNMAPPED == Type) {
-        UnknownPage = RinHeapAlloc(USN_PAGE_SIZE);
-        ReadMemory(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, NULL);
-        UcMapMemoryFromPtr(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, UC_PROT_ALL);
-    }
-
-    if (UC_MEM_FETCH_UNMAPPED == Type) {
-        UcReadRegister(UC_X86_REG_RSP, &RspValue);
-        UcReadMemory(RspValue, &RetAddress, sizeof(RetAddress));
-        UcWriteRegister(UC_X86_REG_RIP, &RetAddress);
-        AddDebugBreakPoint(RetAddress, DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT);
-        CommandExecute("g");
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-HRESULT
-CALLBACK
-Trace(
-    __in PDEBUG_CLIENT Client,
-    __in PCSTR Args
-)
-{
-    CONTEXT DebugContext = { 0 };
-    ULONG64 GsBase = 0;
-    ULONG64 ImageBase = 0;
-    ULONG SizeOfImage = 0;
-    PVOID ImageDumpBase = 0;
-    SHORT TaskRegister = 0x40;
-
-    InitializeEmulator();
-
-    if (UC_ERR_OK == UcReadyEmulatorGdtr()) {
-        UcWriteRegister(UC_X86_REG_TR, &TaskRegister);
-        GetDebugContext(&DebugContext);
-        UcLoadContext(&DebugContext);
-
-        ReadMsr(IA32_GS_BASE, &GsBase);
-        UcWriteMsr(IA32_GS_BASE, GsBase);
-
-        ImageBase = GetImageFromContext(&DebugContext, &SizeOfImage);
-
-        if (0 != ImageBase) {
-            ImageDumpBase = RinHeapAlloc(SizeOfImage);
-            ReadMemory(ImageBase, ImageDumpBase, SizeOfImage, NULL);
-
-            UcMapMemoryFromPtr(
-                ImageBase,
-                ImageDumpBase,
-                SizeOfImage,
-                UC_PROT_ALL);
-
-            UcSetCallback(
-                NULL,
-                NULL, NULL, NULL, NULL, NULL,
-                MemCallback);
-
-            UcEmulatorStart(DebugContext.Rip, 0);
-        }
-        else {
-            dprintf("[Island] Please reload symbols\n");
-        }
-    }
-
-    UninitializeEmulator();
     return S_OK;
 }
