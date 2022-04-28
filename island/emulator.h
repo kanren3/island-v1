@@ -154,12 +154,6 @@ extern "C" {
             IN ULONG64 Address
         );
 
-    ULONG
-        WINAPI
-        Emulate(
-            __out PCONTEXT Context
-        );
-
     BOOLEAN
         WINAPI
         EmulatorMemoryNotify(
