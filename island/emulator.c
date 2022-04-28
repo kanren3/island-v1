@@ -147,12 +147,18 @@ UcMapMemoryFromPtr(
         len += Size % USN_PAGE_SIZE ? USN_PAGE_SIZE : 0;
     }
 
-    uc_state = uc_mem_map_ptr(
+    uc_state = uc_mem_map(
         EmulatorRegion.uc_handle,
         Address,
         len,
-        Protect,
-        Buffer);
+        Protect);
+
+    if (UC_ERR_OK == uc_state) {
+        uc_state = uc_mem_write(EmulatorRegion.uc_handle,
+            Address,
+            Buffer,
+            len);
+    }
 
     return uc_state;
 }

@@ -77,6 +77,7 @@ Trace(
                         DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT,
                         DebugBlock.TraceThreadId);
 
+                    UninitializeEmulator();
                     CommandExecute("g");
                 }
             }
