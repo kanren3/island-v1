@@ -54,6 +54,8 @@ Trace(
                     DebugBlock.TraceSizeOfImage,
                     UC_PROT_ALL);
 
+                RinHeapFree(ImageSnapshoot);
+
                 UcSetCallback(
                     NULL, NULL, NULL, NULL, NULL, NULL,
                     EmulatorMemoryNotify);

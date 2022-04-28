@@ -570,6 +570,7 @@ EmulatorMemoryNotify(
         UnknownPage = RinHeapAlloc(USN_PAGE_SIZE);
         ReadMemory(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, NULL);
         UcMapMemoryFromPtr(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, UC_PROT_ALL);
+        RinHeapFree(UnknownPage);
         return TRUE;
     case UC_MEM_FETCH_UNMAPPED:
         UcWriteRegister(UC_X86_REG_RIP, &Address);
@@ -620,6 +621,7 @@ Emulate(
             ImageSnapshoot = RinHeapAlloc(SizeOfImage);
             ReadMemory(ImageBase, ImageSnapshoot, SizeOfImage, NULL);
             UcMapMemoryFromPtr(ImageBase, ImageSnapshoot, SizeOfImage, UC_PROT_ALL);
+            RinHeapFree(ImageSnapshoot);
 
             UcSetCallback(
                 NULL, NULL, NULL, NULL, NULL, NULL,
