@@ -65,8 +65,6 @@ Trace(
                 if (UC_ERR_FETCH_UNMAPPED == UcState) {
                     UcSaveContext(&Context);
 
-                    TraceNotify(Context.Rip);
-
                     UcReadMemory(
                         Context.Rsp,
                         &DebugBlock.TraceAddress,

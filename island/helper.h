@@ -465,12 +465,6 @@ extern "C" {
             __out PULONG SizeOfImage
         );
 
-    VOID
-        WINAPI
-        TraceNotify(
-            __in ULONG64 Function
-        );
-
 #ifdef __cplusplus
 }
 #endif

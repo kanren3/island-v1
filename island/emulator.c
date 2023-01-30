@@ -569,6 +569,16 @@ EmulatorMemoryNotify(
 )
 {
     PVOID UnknownPage = NULL;
+    HRESULT Result = S_OK;
+    CHAR SymbolsName[MAX_PATH] = { 0 };
+
+    Result = DebugSymbols->lpVtbl->GetNameByOffset(
+        DebugSymbols,
+        Address,
+        SymbolsName,
+        sizeof(SymbolsName),
+        NULL,
+        NULL);
 
     switch (Type) {
     case UC_MEM_READ_UNMAPPED:
@@ -577,9 +587,35 @@ EmulatorMemoryNotify(
         ReadMemory(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, NULL);
         UcMapMemoryFromPtr(Address & ~0xFFF, UnknownPage, USN_PAGE_SIZE, UC_PROT_ALL);
         RinHeapFree(UnknownPage);
+
+        if (UC_MEM_READ_UNMAPPED == Type) {
+            if (S_OK == Result) {
+                dprintf("[Island] Read %I64X %s \n", Address, SymbolsName);
+            }
+            else {
+                dprintf("[Island] Read %I64X \n", Address);
+            }
+        }
+        else {
+            if (S_OK == Result) {
+                dprintf("[Island] Write %I64X %s \n", Address, SymbolsName);
+            }
+            else {
+                dprintf("[Island] Write %I64X \n", Address);
+            }
+        }
+
         return TRUE;
     case UC_MEM_FETCH_UNMAPPED:
         UcWriteRegister(UC_X86_REG_RIP, &Address);
+
+        if (S_OK == Result) {
+            dprintf("[Island] Fetch %I64X %s \n", Address, SymbolsName);
+        }
+        else {
+            dprintf("[Island] Fetch %I64X \n", Address);
+        }
+
         return FALSE;
     }
 

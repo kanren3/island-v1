@@ -233,28 +233,3 @@ GetFunctionImageBase(
 
 	return ImageBase;
 }
-
-VOID
-WINAPI
-TraceNotify(
-	__in ULONG64 Function
-)
-{
-	HRESULT Result = S_OK;
-	CHAR SymbolsName[MAX_PATH] = { 0 };
-
-	Result = DebugSymbols->lpVtbl->GetNameByOffset(
-		DebugSymbols,
-		Function,
-		SymbolsName,
-		sizeof(SymbolsName),
-		NULL,
-		NULL);
-
-	if (S_OK == Result) {
-		dprintf("[Island] TraceNotify %I64X %s \n", Function, SymbolsName);
-	}
-	else {
-		dprintf("[Island] TraceNotify %I64X \n", Function);
-	}
-}
