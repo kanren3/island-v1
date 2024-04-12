@@ -7,3 +7,6 @@ EXPORTS
 
     entry = Entry
     trace = Trace
+    ttb = TraceToBefore
+    tta = TraceToAfter
+    emu = Emulator

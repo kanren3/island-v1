@@ -150,6 +150,11 @@ extern "C" {
 	extern PDEBUG_SYSTEM_OBJECTS DebugSystemObjects;
 	extern PDEBUG_DATA_SPACES DebugDataSpaces;
 
+    typedef enum _TRACE_TYPE {
+        TraceTypeBefore,
+        TraceTypeAfter
+    } TRACE_TYPE;
+
 	typedef struct _DEBUG_BLOCK {
 		ULONG64 MmLoadSystemImage;
 		ULONG64 MmLoadSystemImageEx;
@@ -160,6 +165,10 @@ extern "C" {
         ULONG TraceSizeOfImage;
         ULONG TraceThreadId;
         ULONG64 TraceAddress;
+        CHAR TraceFunction[MAX_PATH];
+        BOOLEAN TraceStop;
+        TRACE_TYPE TraceType;
+        PDEBUG_BREAKPOINT OnceBreakpoint;
 	}DEBUG_BLOCK, * PDEBUG_BLOCK;
 
     typedef struct _CPU_STATE {

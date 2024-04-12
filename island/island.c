@@ -170,21 +170,17 @@ Entry(
     DebugBlock.MmLoadSystemImage = GetOffsetByName("MmLoadSystemImage");
     DebugBlock.MmLoadSystemImageEx = GetOffsetByName("MmLoadSystemImageEx");
 
-    if (DebugBlock.MmLoadSystemImageEx) {
+    if (DebugBlock.MmLoadSystemImage) {
         CommandExecute("bc *");
 
-        AddDebugBreakPoint(
-            DebugBlock.MmLoadSystemImageEx,
-            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT, 0);
+        DebugBlock.OnceBreakpoint = AddDebugBreakPoint(DebugBlock.MmLoadSystemImage);
 
         CommandExecute("g");
     }
-    else if (DebugBlock.MmLoadSystemImage) {
+    else if (DebugBlock.MmLoadSystemImageEx) {
         CommandExecute("bc *");
 
-        AddDebugBreakPoint(
-            DebugBlock.MmLoadSystemImage,
-            DEBUG_BREAKPOINT_ENABLED | DEBUG_BREAKPOINT_ONE_SHOT, 0);
+        DebugBlock.OnceBreakpoint = AddDebugBreakPoint(DebugBlock.MmLoadSystemImageEx);
 
         CommandExecute("g");
     }
